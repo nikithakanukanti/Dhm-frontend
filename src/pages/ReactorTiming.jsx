@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
  
-import api from "../../backend/src/api";
+import api from  "../api";
 
 function getTodayDate() {
   const today = new Date();

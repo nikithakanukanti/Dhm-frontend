@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
  
-import api from "../../backend/src/api";
+import api from  "../api";
 
 function Login() {
     const navigate = useNavigate();

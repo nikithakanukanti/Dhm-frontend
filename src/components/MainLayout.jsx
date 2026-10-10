@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import api from "../../backend/src/api";
+import api from  "../api";
 import { useEffect, useState } from "react";
 
 function MainLayout() {

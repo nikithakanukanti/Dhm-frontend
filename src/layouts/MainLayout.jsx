@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
  
-import api from "../../backend/src/api";
+import api from  "../api";
 function MainLayout() {
     const navigate = useNavigate();
 
