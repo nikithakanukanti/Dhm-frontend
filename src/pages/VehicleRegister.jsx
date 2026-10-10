@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+ 
 import { useNavigate } from "react-router-dom";
-const API_URL = "http://localhost:8090";
+import api from "../../backend/src/api";
+const API_URL = "https://dhm-backend.onrender.com";
 
 function VehicleRegister() {
 
@@ -71,7 +72,7 @@ function VehicleRegister() {
             setLoading(true);
             setError("");
 
-            const response = await axios.get(
+            const response = await api.get(
                 `${API_URL}/api/vehicles`,
                 {
                     withCredentials: true
@@ -303,7 +304,7 @@ function VehicleRegister() {
 
         if (editingId) {
 
-            const response = await axios.put(
+            const response = await api.put(
                 `${API_URL}/api/vehicles/${editingId}`,
                 vehiclePayload,
                 {
@@ -315,7 +316,7 @@ function VehicleRegister() {
 
         } else {
 
-            const response = await axios.post(
+            const response = await api.post(
                 `${API_URL}/api/vehicles`,
                 vehiclePayload,
                 {
@@ -342,7 +343,7 @@ function VehicleRegister() {
                 remarks: form.remarks.trim()
             };
 
-            await axios.post(
+            await api.post(
                 `${API_URL}/api/sales`,
                 salesPayload,
                 {
@@ -376,7 +377,7 @@ function VehicleRegister() {
                 remarks: form.remarks.trim()
             };
 
-            await axios.post(
+            await api.post(
                 `${API_URL}/api/purchases`,
                 purchasePayload,
                 {
@@ -496,7 +497,7 @@ function VehicleRegister() {
             setSuccess("");
 
 
-            await axios.delete(
+            await api.delete(
                 `${API_URL}/api/vehicles/${id}`,
                 {
                     withCredentials: true

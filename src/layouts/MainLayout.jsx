@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import axios from "axios";
-
+ 
+import api from "../../backend/src/api";
 function MainLayout() {
     const navigate = useNavigate();
 
@@ -14,12 +14,8 @@ function MainLayout() {
 
     async function checkCurrentUser() {
         try {
-            const response = await axios.get(
-                "http://localhost:8090/api/auth/me",
-                {
-                    withCredentials: true
-                }
-            );
+            const response = await api.get("/api/auth/me");
+
 
             console.log("CURRENT USER:", response.data);
 
@@ -47,8 +43,8 @@ function MainLayout() {
 
     async function handleLogout() {
         try {
-            await axios.post(
-                "http://localhost:8090/logout",
+            await api.post(
+                "/logout",
                 {},
                 {
                     withCredentials: true

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+ 
+import api from "../../backend/src/api";
 
 function Login() {
     const navigate = useNavigate();
@@ -29,8 +30,8 @@ function Login() {
             // STEP 1: Clear any existing Spring Security session
             // ------------------------------------------------
             try {
-                await axios.post(
-                    "http://localhost:8090/logout",
+                await api.post(
+                    "https://dhm-backend.onrender.com/logout",
                     {},
                     {
                         withCredentials: true
@@ -49,8 +50,8 @@ function Login() {
             formData.append("username", username.trim());
             formData.append("password", password);
 
-            await axios.post(
-                "http://localhost:8090/login",
+            await api.post(
+                "https://dhm-backend.onrender.com/login",
                 formData,
                 {
                     withCredentials: true,
@@ -64,8 +65,8 @@ function Login() {
             // ------------------------------------------------
             // STEP 3: Ask backend who actually logged in
             // ------------------------------------------------
-            const response = await axios.get(
-                "http://localhost:8090/api/auth/me",
+            const response = await api.get(
+                "https://dhm-backend.onrender.com/api/auth/me",
                 {
                     withCredentials: true
                 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+ 
+import api from "../../backend/src/api";
 
 function getTodayDate() {
   const today = new Date();
@@ -33,8 +34,8 @@ function ReactorTiming() {
     try {
       setLoading(true);
 
-      const response = await axios.get(
-        "http://localhost:8090/api/reactor-timings",
+      const response = await api.get(
+        "https://dhm-backend.onrender.com/api/reactor-timings",
         {
           withCredentials: true
         }
@@ -121,8 +122,8 @@ function ReactorTiming() {
 
       if (editingId) {
 
-        await axios.put(
-          `http://localhost:8090/api/reactor-timings/${editingId}`,
+        await api.put(
+          `https://dhm-backend.onrender.com/api/reactor-timings/${editingId}`,
           data
         );
 
@@ -130,8 +131,8 @@ function ReactorTiming() {
 
       } else {
 
-        await axios.post(
-          "http://localhost:8090/api/reactor-timings",
+        await api.post(
+          "https://dhm-backend.onrender.com/api/reactor-timings",
           data
         );
 
@@ -163,8 +164,8 @@ function ReactorTiming() {
 
     try {
 
-      await axios.delete(
-        `http://localhost:8090/api/reactor-timings/${id}`
+      await api.delete(
+        `https://dhm-backend.onrender.com/api/reactor-timings/${id}`
       );
 
       alert("Reactor timing deleted successfully!");

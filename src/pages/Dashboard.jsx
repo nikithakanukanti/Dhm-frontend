@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+ 
+import api from "../../backend/src/api";
 
 function Dashboard() {
 
@@ -29,20 +30,20 @@ function Dashboard() {
              */
 
             const requests = await Promise.allSettled([
-                axios.get(
-                    "http://localhost:8090/api/vehicles",
+                api.get(
+                    "https://dhm-backend.onrender.com/api/vehicles",
                     { withCredentials: true }
                 ),
-                axios.get(
-                    "http://localhost:8090/api/sales",
+                api.get(
+                    "https://dhm-backend.onrender.com/api/sales",
                     { withCredentials: true }
                 ),
-                axios.get(
-                    "http://localhost:8090/api/purchases",
+                api.get(
+                    "https://dhm-backend.onrender.com/api/purchases",
                     { withCredentials: true }
                 ),
-                axios.get(
-                    "http://localhost:8090/api/reactor-timings",
+                api.get(
+                    "https://dhm-backend.onrender.com/api/reactor-timings",
                     { withCredentials: true }
                 )
             ]);

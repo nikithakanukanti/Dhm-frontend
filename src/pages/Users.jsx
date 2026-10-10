@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+ 
+import api from "../../backend/src/api";
 
-const API_URL = "http://localhost:8090";
+const API_URL = "https://dhm-backend.onrender.com";
 
 function Users() {
 
@@ -14,7 +15,7 @@ function Users() {
             setLoading(true);
             setError("");
 
-            const response = await axios.get(
+            const response = await api.get(
                 `${API_URL}/api/users`,
                 {
                     withCredentials: true

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+ 
+import api from "../../backend/src/api";
 
-const API_URL = "http://localhost:8090";
+const API_URL = "https://dhm-backend.onrender.com";
 
 const commodities = [
     "Local Waste Rubber Tyre",
@@ -32,7 +33,7 @@ function SalesRegister() {
         try {
             setLoading(true);
 
-            const response = await axios.get(
+            const response = await api.get(
                 `${API_URL}/api/sales`,
                 {
                     withCredentials: true
@@ -111,7 +112,7 @@ function SalesRegister() {
 
             if (editingId) {
 
-                await axios.put(
+                await api.put(
                     `${API_URL}/api/sales/${editingId}`,
                     payload,
                     {
@@ -123,7 +124,7 @@ function SalesRegister() {
 
             } else {
 
-                await axios.post(
+                await api.post(
                     `${API_URL}/api/sales`,
                     payload,
                     {
@@ -179,7 +180,7 @@ function SalesRegister() {
 
         try {
 
-            await axios.delete(
+            await api.delete(
                 `${API_URL}/api/sales/${id}`,
                 {
                     withCredentials: true

@@ -1,7 +1,8 @@
-import axios from "axios";
+ 
 import { useEffect, useState } from "react";
+import api from "../../backend/src/api";
 
-const API_URL = "http://localhost:8090";
+const API_URL = "https://dhm-backend.onrender.com";
 
 function Reports() {
     const [activeReport, setActiveReport] = useState("overview");
@@ -26,16 +27,16 @@ function Reports() {
 
         try {
             const results = await Promise.allSettled([
-                axios.get(`${API_URL}/api/vehicles`, {
+                api.get(`${API_URL}/api/vehicles`, {
                     withCredentials: true
                 }),
-                axios.get(`${API_URL}/api/sales`, {
+                api.get(`${API_URL}/api/sales`, {
                     withCredentials: true
                 }),
-                axios.get(`${API_URL}/api/purchases`, {
+                api.get(`${API_URL}/api/purchases`, {
                     withCredentials: true
                 }),
-                axios.get(`${API_URL}/api/reactor-timings`, {
+                api.get(`${API_URL}/api/reactor-timings`, {
                     withCredentials: true
                 })
             ]);
@@ -71,7 +72,7 @@ function Reports() {
 
     async function exportExcel() {
         try {
-            const response = await axios.get(
+            const response = await api.get(
                 `${API_URL}/api/reports/export/excel`,
                 {
                     withCredentials: true,
@@ -105,7 +106,7 @@ function Reports() {
 
     async function exportPdf() {
         try {
-            const response = await axios.get(
+            const response = await api.get(
                 `${API_URL}/api/reports/export/pdf`,
                 {
                     withCredentials: true,
