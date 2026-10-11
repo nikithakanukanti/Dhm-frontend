@@ -1,255 +1,321 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
- 
-import api from  "../api";
+import api from "../api";
+
 function MainLayout() {
     const navigate = useNavigate();
 
-    const [user, setUser] = useState(null);
+    const [role, setRole] = useState("");
     const [loading, setLoading] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
+    // Check the currently authenticated user
     useEffect(() => {
-        checkCurrentUser();
-    }, []);
+        let isMounted = true;
 
-    async function checkCurrentUser() {
-        try {
-            const response = await api.get("/api/auth/me");
+        async function getCurrentUser() {
+            try {
+                const response = await api.get("/api/auth/me");
 
+                console.log("Current user:", response.data);
 
-            console.log("CURRENT USER:", response.data);
-
-            setUser(response.data);
-
-            // Keep the actual logged-in user in session storage
-            sessionStorage.setItem(
-                "dhmUser",
-                JSON.stringify(response.data)
-            );
-
-        } catch (error) {
-            console.error(
-                "Unable to get current user:",
-                error
-            );
-
-            sessionStorage.removeItem("dhmUser");
-
-            navigate("/login");
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    async function handleLogout() {
-        try {
-            await api.post(
-                "/logout",
-                {},
-                {
-                    withCredentials: true
+                if (!response.data || !response.data.role) {
+                    throw new Error("User role was not returned by the server.");
                 }
-            );
+
+                if (isMounted) {
+                    setRole(response.data.role);
+
+                    sessionStorage.setItem(
+                        "dhmUser",
+                        JSON.stringify(response.data)
+                    );
+                }
+            } catch (error) {
+                console.error(
+                    "Authentication failed:",
+                    error.response?.status,
+                    error.response?.data || error.message
+                );
+
+                if (isMounted) {
+                    sessionStorage.removeItem("dhmUser");
+                    navigate("/login", { replace: true });
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        }
+
+        getCurrentUser();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [navigate]);
+
+    // Logout
+    async function logout() {
+        try {
+            await api.post("/logout", {});
         } catch (error) {
-            console.error(
-                "Logout error:",
-                error
-            );
+            console.error("Logout error:", error);
         } finally {
             sessionStorage.removeItem("dhmUser");
-            localStorage.removeItem("username");
-            localStorage.removeItem("role");
-
-            navigate("/login");
+            navigate("/login", { replace: true });
         }
     }
 
-    // Wait until backend confirms the logged-in user
+    // Close mobile sidebar
+    function closeSidebar() {
+        setSidebarOpen(false);
+    }
+
+    // Loading screen
     if (loading) {
         return (
-            <div className="app-layout">
-                <div
-                    style={{
-                        width: "100%",
-                        minHeight: "100vh",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: "#f5f7fb",
-                        color: "#334155",
-                        fontSize: "15px",
-                        fontWeight: "600"
-                    }}
-                >
-                    Loading...
+            <div className="loading-screen">
+                <div className="loading-logo-wrapper">
+                    <img
+                        src="/dhm-logo.jpg"
+                        alt="DHM Pyrotech Enterprises"
+                        className="loading-logo"
+                    />
                 </div>
+
+                <div className="loading-ring"></div>
+
+                <h2>DHM Factory</h2>
+
+                <p>Loading Factory Management System...</p>
             </div>
         );
     }
 
-    if (!user) {
-        return null;
-    }
-
-    const isAdmin = user.role === "ADMIN";
-
-    const displayName =
-        user.username === "admin"
-            ? "Admin"
-            : user.username === "supervisor"
-                ? "Supervisor"
-                : user.username;
-
-    const roleName =
-        isAdmin
-            ? "Administrator"
-            : "Supervisor";
-
-    const avatarLetter =
-        displayName.charAt(0).toUpperCase();
-
     return (
         <div className="app-layout">
 
-            {/* =========================
-                SIDEBAR
-                ========================= */}
-            <aside className="sidebar">
+            {/* MOBILE OVERLAY */}
+            {sidebarOpen && (
+                <div
+                    className="sidebar-overlay"
+                    onClick={closeSidebar}
+                />
+            )}
 
-                {/* COMPANY LOGO */}
-                <div className="logo">
-
-                    <img
-                        src="/dhm-logo.jpg"
-                        alt="DHM Pyrotech Enterprises"
-                        className="sidebar-logo"
-                        style={{
-                            position: "static",
-                            transform: "none",
-                            animation: "none",
-                            transition: "none",
-                            objectPosition: "center"
-                        }}
-                    />
-
-                    <div className="logo-text">
-
-                        <h2>DHM</h2>
-
-                        <span>
-                            Factory Digital Entry
-                        </span>
-
+            {/* SIDEBAR */}
+            <aside
+                className={`sidebar ${
+                    sidebarOpen ? "sidebar-open" : ""
+                }`}
+            >
+                {/* COMPANY BRAND */}
+                <div className="sidebar-header">
+                    <div className="brand-logo-wrapper">
+                        <img
+                            src="/dhm-logo.jpg"
+                            alt="DHM Pyrotech Enterprises"
+                            className="brand-logo"
+                        />
                     </div>
 
+                    <div className="brand-text">
+                        <h2>DHM</h2>
+                        <p>Factory Digital Entry</p>
+                    </div>
                 </div>
 
+                <div className="sidebar-section-title">
+                    MAIN MENU
+                </div>
 
-                {/* =========================
-                    NAVIGATION
-                    ========================= */}
-                <nav>
+                <nav className="sidebar-nav">
 
-                    <NavLink to="/dashboard">
-                        Dashboard
+                    {/* DASHBOARD */}
+                    {role === "ADMIN" && (
+                        <NavLink
+                            to="/dashboard"
+                            onClick={closeSidebar}
+                            className={({ isActive }) =>
+                                isActive ? "active" : ""
+                            }
+                        >
+                            <span className="nav-icon">▦</span>
+                            <span>Dashboard</span>
+                        </NavLink>
+                    )}
+
+                    {/* VEHICLE REGISTER */}
+                    <NavLink
+                        to="/vehicle-register"
+                        onClick={closeSidebar}
+                        className={({ isActive }) =>
+                            isActive ? "active" : ""
+                        }
+                    >
+                        <span className="nav-icon">🚛</span>
+                        <span>Vehicle Register</span>
                     </NavLink>
 
-                    <NavLink to="/vehicle-register">
-                        Vehicle Register
+                    {/* SALES REGISTER */}
+                    <NavLink
+                        to="/sales-register"
+                        onClick={closeSidebar}
+                        className={({ isActive }) =>
+                            isActive ? "active" : ""
+                        }
+                    >
+                        <span className="nav-icon">↗</span>
+                        <span>Sales Register</span>
                     </NavLink>
 
-                    <NavLink to="/sales-register">
-                        Sales Register
+                    {/* PURCHASE REGISTER */}
+                    <NavLink
+                        to="/purchase-register"
+                        onClick={closeSidebar}
+                        className={({ isActive }) =>
+                            isActive ? "active" : ""
+                        }
+                    >
+                        <span className="nav-icon">↙</span>
+                        <span>Purchase Register</span>
                     </NavLink>
 
-                    <NavLink to="/purchase-register">
-                        Purchase Register
+                    {/* REACTOR TIMING */}
+                    <NavLink
+                        to="/reactor-timing"
+                        onClick={closeSidebar}
+                        className={({ isActive }) =>
+                            isActive ? "active" : ""
+                        }
+                    >
+                        <span className="nav-icon">◷</span>
+                        <span>Reactor Timing</span>
                     </NavLink>
 
-                    <NavLink to="/reactor-timing">
-                        Reactor Timing
-                    </NavLink>
-
-
-                    {/* ADMIN ONLY */}
-                    {isAdmin && (
+                    {/* ADMINISTRATION */}
+                    {role === "ADMIN" && (
                         <>
-                            <NavLink to="/reports">
-                                Reports
+                            <div className="sidebar-section-title">
+                                ADMINISTRATION
+                            </div>
+
+                            {/* REPORTS */}
+                            <NavLink
+                                to="/reports"
+                                onClick={closeSidebar}
+                                className={({ isActive }) =>
+                                    isActive ? "active" : ""
+                                }
+                            >
+                                <span className="nav-icon">▤</span>
+                                <span>Reports</span>
                             </NavLink>
 
-                            <NavLink to="/users">
-                                Users
+                            {/* USERS */}
+                            <NavLink
+                                to="/users"
+                                onClick={closeSidebar}
+                                className={({ isActive }) =>
+                                    isActive ? "active" : ""
+                                }
+                            >
+                                <span className="nav-icon">♙</span>
+                                <span>Users</span>
                             </NavLink>
                         </>
                     )}
 
                 </nav>
 
-
-                {/* =========================
-                    SIDEBAR BOTTOM
-                    ========================= */}
+                {/* SIDEBAR BOTTOM */}
                 <div className="sidebar-bottom">
-
                     <div className="logged-user">
-
                         <div className="user-avatar">
-                            {avatarLetter}
+                            {role === "ADMIN" ? "A" : "S"}
                         </div>
 
                         <div className="user-details">
-
                             <strong>
-                                {displayName}
+                                {role === "ADMIN"
+                                    ? "Administrator"
+                                    : "Supervisor"}
                             </strong>
 
                             <span>
-                                {roleName}
+                                {role === "ADMIN"
+                                    ? "Full Access"
+                                    : "Data Entry"}
                             </span>
-
                         </div>
-
                     </div>
-
 
                     <button
                         className="logout-button"
-                        onClick={handleLogout}
+                        onClick={logout}
                     >
                         <span>↪</span>
                         Logout
                     </button>
-
                 </div>
 
             </aside>
 
-
-            {/* =========================
-                MAIN AREA
-                ========================= */}
+            {/* MAIN CONTENT */}
             <main className="main-content">
 
-                {/* TOP BAR */}
+                {/* TOPBAR */}
                 <header className="topbar">
+                    <div className="topbar-left">
 
-                    <div>
+                        <button
+                            className="mobile-menu"
+                            onClick={() => setSidebarOpen(true)}
+                            aria-label="Open navigation menu"
+                        >
+                            ☰
+                        </button>
 
-                        <h2>
-                            DHM Factory Digital Entry
-                        </h2>
+                        <div className="topbar-title">
+                            <img
+                                src="/dhm-logo.jpg"
+                                alt="DHM Pyrotech Enterprises"
+                                className="topbar-logo"
+                            />
+
+                            <span className="topbar-line"></span>
+
+                            <div>
+                                <h2>DHM Pyrotech Enterprises</h2>
+                            </div>
+                        </div>
 
                     </div>
 
+                    <div className="topbar-user">
+                        <span className="status-dot"></span>
+
+                        <div>
+                            <strong>
+                                {role === "ADMIN"
+                                    ? "Administrator"
+                                    : "Supervisor"}
+                            </strong>
+
+                            <small>
+                                {role === "ADMIN"
+                                    ? "Full Access"
+                                    : "Data Entry"}
+                            </small>
+                        </div>
+                    </div>
                 </header>
 
-
                 {/* PAGE CONTENT */}
-                <section className="page-content">
-
+                <section className="page-content page-transition">
                     <Outlet />
-
                 </section>
 
             </main>
