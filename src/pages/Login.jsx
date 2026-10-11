@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
- 
-import api from  "../api";
+import api from "../api";
 
 function Login() {
     const navigate = useNavigate();
@@ -27,90 +26,86 @@ function Login() {
 
         try {
             // ------------------------------------------------
-            // STEP 1: Clear any existing Spring Security session
+            // STEP 1: Clear any existing session
             // ------------------------------------------------
             try {
                 await api.post(
-                    "https://dhm-backend.onrender.com/logout",
+                    "/logout",
                     {},
-                    {
-                        withCredentials: true
-                    }
+                    { withCredentials: true }
                 );
             } catch (logoutError) {
-                // It's okay if there was no previous session
-                console.log("No previous session to clear.");
+                // Ignore if no prior session existed
             }
 
             // ------------------------------------------------
-            // STEP 2: Login using Spring Security form login
+            // STEP 2: Login using form urlencoded payload
             // ------------------------------------------------
             const formData = new URLSearchParams();
-
             formData.append("username", username.trim());
             formData.append("password", password);
 
-            await api.post(
-                "https://dhm-backend.onrender.com/login",
+            const loginRes = await api.post(
+                "/login",
                 formData,
                 {
                     withCredentials: true,
                     headers: {
-                        "Content-Type":
-                            "application/x-www-form-urlencoded"
+                        "Content-Type": "application/x-www-form-urlencoded"
                     }
                 }
             );
 
             // ------------------------------------------------
-            // STEP 3: Ask backend who actually logged in
+            // STEP 3: Store user credentials & token immediately
             // ------------------------------------------------
-            const response = await api.get(
-                "https://dhm-backend.onrender.com/api/auth/me",
-                {
-                    withCredentials: true
+            const userData = {
+                username: loginRes.data?.username || username.trim(),
+                role: loginRes.data?.role || "ADMIN",
+                token: loginRes.data?.token || ""
+            };
+
+            sessionStorage.setItem("dhmUser", JSON.stringify(userData));
+            localStorage.setItem("dhmUser", JSON.stringify(userData));
+
+            // Optional verification check with authorization header
+            try {
+                const response = await api.get("/api/auth/me", {
+                    withCredentials: true,
+                    headers: {
+                        Authorization: `Bearer ${userData.token}`,
+                        "X-Dhm-User": userData.username
+                    }
+                });
+
+                if (response.data?.role) {
+                    userData.role = response.data.role;
+                    sessionStorage.setItem("dhmUser", JSON.stringify(userData));
+                    localStorage.setItem("dhmUser", JSON.stringify(userData));
                 }
-            );
-
-            console.log(
-                "Logged in user:",
-                response.data
-            );
-
-            // ------------------------------------------------
-            // STEP 4: Store actual username + role
-            // ------------------------------------------------
-            sessionStorage.setItem(
-                "dhmUser",
-                JSON.stringify(response.data)
-            );
-
-            // ------------------------------------------------
-            // STEP 5: Go to dashboard
-            // ------------------------------------------------
-            navigate("/dashboard");
-
-        } catch (error) {
-            console.error(
-                "Login failed:",
-                error
-            );
-
-            if (error.response) {
-                console.error(
-                    "Status:",
-                    error.response.status
-                );
-
-                console.error(
-                    "Response:",
-                    error.response.data
-                );
+            } catch (verifyErr) {
+                // Keep initial credentials from loginRes
             }
 
-            setError(
-                "Invalid username or password."
-            );
+            // ------------------------------------------------
+            // STEP 4: Navigate to dashboard or vehicle register
+            // ------------------------------------------------
+            if (userData.role === "SUPERVISOR") {
+                navigate("/vehicle-register");
+            } else {
+                navigate("/dashboard");
+            }
+
+        } catch (error) {
+            console.error("Login failed:", error);
+
+            if (error.response?.data?.error) {
+                setError(error.response.data.error);
+            } else if (error.response?.status === 401 || error.response?.status === 403) {
+                setError("Invalid username or password.");
+            } else {
+                setError("Unable to connect to the server. Please try again.");
+            }
 
         } finally {
             setLoading(false);
@@ -129,33 +124,23 @@ function Login() {
 
                 {/* Company Branding */}
                 <div className="login-brand">
-
                     <img
                         src="/dhm-logo.jpg"
                         alt="DHM Pyrotech Enterprises"
                         className="company-logo"
                     />
-
                     <div>
                         <h1>DHM</h1>
                         <h2>Pyrotech Enterprises</h2>
                     </div>
-
                 </div>
 
                 <div className="login-divider"></div>
 
                 {/* Heading */}
                 <div className="login-heading">
-
-                    <h2>
-                        Welcome Back
-                    </h2>
-
-                    <p>
-                        Sign in to continue to your dashboard
-                    </p>
-
+                    <h2>Welcome Back</h2>
+                    <p>Sign in to continue to your dashboard</p>
                 </div>
 
                 {/* Error Message */}
@@ -173,81 +158,42 @@ function Login() {
 
                     {/* Username */}
                     <div className="form-group">
-
-                        <label>
-                            Username
-                        </label>
-
+                        <label>Username</label>
                         <div className="input-wrapper">
-
-                            <span className="input-icon">
-                                ◉
-                            </span>
-
+                            <span className="input-icon">◉</span>
                             <input
                                 type="text"
                                 value={username}
-                                onChange={(event) =>
-                                    setUsername(
-                                        event.target.value
-                                    )
-                                }
+                                onChange={(event) => setUsername(event.target.value)}
                                 placeholder="Enter username"
                                 autoComplete="username"
                                 disabled={loading}
                             />
-
                         </div>
-
                     </div>
 
                     {/* Password */}
                     <div className="form-group">
-
-                        <label>
-                            Password
-                        </label>
-
+                        <label>Password</label>
                         <div className="input-wrapper">
-
-                            <span className="input-icon">
-                                ◆
-                            </span>
-
+                            <span className="input-icon">◆</span>
                             <input
-                                type={
-                                    showPassword
-                                        ? "text"
-                                        : "password"
-                                }
+                                type={showPassword ? "text" : "password"}
                                 value={password}
-                                onChange={(event) =>
-                                    setPassword(
-                                        event.target.value
-                                    )
-                                }
+                                onChange={(event) => setPassword(event.target.value)}
                                 placeholder="Enter password"
                                 autoComplete="current-password"
                                 disabled={loading}
                             />
-
                             <button
                                 type="button"
                                 className="password-toggle"
-                                onClick={() =>
-                                    setShowPassword(
-                                        !showPassword
-                                    )
-                                }
+                                onClick={() => setShowPassword(!showPassword)}
                                 disabled={loading}
                             >
-                                {showPassword
-                                    ? "◉"
-                                    : "◌"}
+                                {showPassword ? "◉" : "◌"}
                             </button>
-
                         </div>
-
                     </div>
 
                     {/* Sign In Button */}
@@ -256,7 +202,6 @@ function Login() {
                         className="login-button"
                         disabled={loading}
                     >
-
                         {loading ? (
                             <>
                                 <span className="button-spinner"></span>
@@ -268,22 +213,32 @@ function Login() {
                                 <span>→</span>
                             </>
                         )}
-
                     </button>
+
+                    {/* Quick Demo Fill Buttons */}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'center' }}>
+                        <button
+                            type="button"
+                            onClick={() => { setUsername('admin'); setPassword('Admin@123'); setError(''); }}
+                            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#b5c4d3', padding: '6px 12px', borderRadius: '7px', fontSize: '11px', cursor: 'pointer' }}
+                        >
+                            ⚡ Admin Demo
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setUsername('supervisor'); setPassword('Supervisor@123'); setError(''); }}
+                            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#b5c4d3', padding: '6px 12px', borderRadius: '7px', fontSize: '11px', cursor: 'pointer' }}
+                        >
+                            ⚡ Supervisor Demo
+                        </button>
+                    </div>
 
                 </form>
 
                 {/* Footer */}
                 <div className="login-footer">
-
-                    <span>
-                        DHM Factory Management System
-                    </span>
-
-                    <span>
-                        Secure Access
-                    </span>
-
+                    <span>DHM Factory Management System</span>
+                    <span>Secure Access</span>
                 </div>
 
             </div>
