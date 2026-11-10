@@ -10,11 +10,11 @@ function Login() {
 
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [coldStartNotice, setColdStartNotice] = useState(false);
     const [error, setError] = useState("");
 
     async function handleLogin(event) {
         event.preventDefault();
-
         setError("");
 
         if (!username.trim() || !password) {
@@ -23,92 +23,87 @@ function Login() {
         }
 
         setLoading(true);
+        setColdStartNotice(false);
+
+        // Show cloud server wake-up notice if it takes more than 3.5 seconds
+        const noticeTimer = setTimeout(() => {
+            setColdStartNotice(true);
+        }, 3500);
 
         try {
-            // ------------------------------------------------
-            // STEP 1: Clear any existing session
-            // ------------------------------------------------
+            // STEP 1: Attempt JSON token-based login
+            let userData = null;
+
             try {
-                await api.post(
-                    "/logout",
-                    {},
-                    { withCredentials: true }
-                );
-            } catch (logoutError) {
-                // Ignore if no prior session existed
+                const res = await api.post("/api/auth/login", {
+                    username: username.trim(),
+                    password: password
+                });
+
+                if (res.data && res.data.token) {
+                    userData = {
+                        username: res.data.username || username.trim(),
+                        role: res.data.role || "ADMIN",
+                        token: res.data.token,
+                        fullName: res.data.fullName || res.data.username || username.trim(),
+                        permittedModules: res.data.permittedModules || ""
+                    };
+                }
+            } catch (jsonErr) {
+                // If 401 Unauthorized, rethrow so user sees invalid credentials
+                if (jsonErr.response?.status === 401) {
+                    throw jsonErr;
+                }
+                // Fallback to legacy form login if endpoint not reached
+                console.warn("JSON login endpoint fallback, attempting form login...", jsonErr);
             }
 
-            // ------------------------------------------------
-            // STEP 2: Login using form urlencoded payload
-            // ------------------------------------------------
-            const formData = new URLSearchParams();
-            formData.append("username", username.trim());
-            formData.append("password", password);
+            // STEP 2: Fallback to form-login if JSON login was not returned
+            if (!userData) {
+                const formData = new URLSearchParams();
+                formData.append("username", username.trim());
+                formData.append("password", password);
 
-            const loginRes = await api.post(
-                "/login",
-                formData,
-                {
-                    withCredentials: true,
+                await api.post("/login", formData, {
                     headers: {
                         "Content-Type": "application/x-www-form-urlencoded"
                     }
-                }
-            );
-
-            // ------------------------------------------------
-            // STEP 3: Store user credentials & token immediately
-            // ------------------------------------------------
-            const userData = {
-                username: loginRes.data?.username || username.trim(),
-                role: loginRes.data?.role || "ADMIN",
-                token: loginRes.data?.token || ""
-            };
-
-            sessionStorage.setItem("dhmUser", JSON.stringify(userData));
-            localStorage.setItem("dhmUser", JSON.stringify(userData));
-
-            // Optional verification check with authorization header
-            try {
-                const response = await api.get("/api/auth/me", {
-                    withCredentials: true,
-                    headers: {
-                        Authorization: `Bearer ${userData.token}`,
-                        "X-Dhm-User": userData.username
-                    }
                 });
 
-                if (response.data?.role) {
-                    userData.role = response.data.role;
-                    sessionStorage.setItem("dhmUser", JSON.stringify(userData));
-                    localStorage.setItem("dhmUser", JSON.stringify(userData));
-                }
-            } catch (verifyErr) {
-                // Keep initial credentials from loginRes
+                // Fetch user details from /api/auth/me
+                const meRes = await api.get("/api/auth/me");
+                userData = {
+                    username: meRes.data?.username || username.trim(),
+                    role: meRes.data?.role || "ADMIN",
+                    token: "",
+                    fullName: meRes.data?.fullName || meRes.data?.username || username.trim(),
+                    permittedModules: meRes.data?.permittedModules || ""
+                };
             }
 
-            // ------------------------------------------------
-            // STEP 4: Navigate to dashboard or vehicle register
-            // ------------------------------------------------
-            if (userData.role === "SUPERVISOR") {
-                navigate("/vehicle-register");
-            } else {
-                navigate("/dashboard");
-            }
+            // STEP 3: Store authenticated user
+            localStorage.setItem("dhmUser", JSON.stringify(userData));
+            sessionStorage.setItem("dhmUser", JSON.stringify(userData));
 
-        } catch (error) {
-            console.error("Login failed:", error);
+            // STEP 4: Navigate to dashboard
+            navigate("/dashboard", { replace: true });
 
-            if (error.response?.data?.error) {
-                setError(error.response.data.error);
-            } else if (error.response?.status === 401 || error.response?.status === 403) {
+        } catch (err) {
+            console.error("Login failed:", err);
+
+            if (err.response?.data?.error) {
+                setError(err.response.data.error);
+            } else if (err.response?.status === 401 || err.response?.status === 403) {
                 setError("Invalid username or password.");
+            } else if (err.code === "ECONNABORTED" || !err.response) {
+                setError("Server is currently waking up or unreachable. Please try again in 10-15 seconds.");
             } else {
                 setError("Unable to connect to the server. Please try again.");
             }
-
         } finally {
+            clearTimeout(noticeTimer);
             setLoading(false);
+            setColdStartNotice(false);
         }
     }
 
@@ -140,13 +135,29 @@ function Login() {
                 {/* Heading */}
                 <div className="login-heading">
                     <h2>Welcome Back</h2>
-                    <p>Sign in to continue to your dashboard</p>
+                    <p>Sign in to continue to your factory dashboard</p>
                 </div>
 
                 {/* Error Message */}
                 {error && (
                     <div className="login-error">
                         ⚠ {error}
+                    </div>
+                )}
+
+                {/* Cold Start Notice */}
+                {coldStartNotice && (
+                    <div style={{
+                        background: "rgba(59, 130, 246, 0.12)",
+                        border: "1px solid rgba(59, 130, 246, 0.3)",
+                        color: "#93c5fd",
+                        padding: "10px 14px",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                        marginBottom: "16px",
+                        textAlign: "center"
+                    }}>
+                        ⏳ Waking up cloud server... please hold on a few seconds.
                     </div>
                 )}
 
@@ -168,6 +179,7 @@ function Login() {
                                 placeholder="Enter username"
                                 autoComplete="username"
                                 disabled={loading}
+                                required
                             />
                         </div>
                     </div>
@@ -184,12 +196,14 @@ function Login() {
                                 placeholder="Enter password"
                                 autoComplete="current-password"
                                 disabled={loading}
+                                required
                             />
                             <button
                                 type="button"
                                 className="password-toggle"
                                 onClick={() => setShowPassword(!showPassword)}
                                 disabled={loading}
+                                aria-label="Toggle password visibility"
                             >
                                 {showPassword ? "◉" : "◌"}
                             </button>
@@ -215,19 +229,35 @@ function Login() {
                         )}
                     </button>
 
-                    {/* Quick Demo Fill Buttons */}
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'center' }}>
+                    {/* Quick Demo Credentials */}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '14px', justifyContent: 'center' }}>
                         <button
                             type="button"
                             onClick={() => { setUsername('admin'); setPassword('Admin@123'); setError(''); }}
-                            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#b5c4d3', padding: '6px 12px', borderRadius: '7px', fontSize: '11px', cursor: 'pointer' }}
+                            style={{
+                                background: 'rgba(255,255,255,0.08)',
+                                border: '1px solid rgba(255,255,255,0.18)',
+                                color: '#b5c4d3',
+                                padding: '6px 12px',
+                                borderRadius: '7px',
+                                fontSize: '11px',
+                                cursor: 'pointer'
+                            }}
                         >
                             ⚡ Admin Demo
                         </button>
                         <button
                             type="button"
                             onClick={() => { setUsername('supervisor'); setPassword('Supervisor@123'); setError(''); }}
-                            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#b5c4d3', padding: '6px 12px', borderRadius: '7px', fontSize: '11px', cursor: 'pointer' }}
+                            style={{
+                                background: 'rgba(255,255,255,0.08)',
+                                border: '1px solid rgba(255,255,255,0.18)',
+                                color: '#b5c4d3',
+                                padding: '6px 12px',
+                                borderRadius: '7px',
+                                fontSize: '11px',
+                                cursor: 'pointer'
+                            }}
                         >
                             ⚡ Supervisor Demo
                         </button>
